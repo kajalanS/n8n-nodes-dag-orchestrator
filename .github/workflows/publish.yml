@@ -1,20 +1,25 @@
 name: Publish n8n Community Node
 
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - main
 
 jobs:
   build_and_publish:
-    name: Build & Publish
+    name: Build & Publish via Semantic-Release
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # Needed for semantic-release to create github releases/tags
+      issues: write
+      pull-requests: write
       id-token: write # Essential for npm provenance verified publishing
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for semantic-release to analyze all commits
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -31,7 +36,9 @@ jobs:
       - name: Build Application
         run: npm run build
 
-      - name: Publish to NPM
-        run: npm publish --provenance --access public
+      - name: Semantic Release
+        run: npx semantic-release
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
