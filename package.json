@@ -4,7 +4,7 @@
   "description": "Blueprint-Style DAG Workflow Orchestrator for n8n",
   "main": "dist/nodes/DagOrchestrator/DagOrchestrator.node.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node ./scripts/copy-assets.js",
     "dev": "tsc --watch",
     "lint": "eslint . --ext .ts",
     "prepare": "npm run build",
