@@ -1,73 +1,75 @@
-# n8n-nodes-dag-orchestrator
-![n8n](https://img.shields.io/badge/n8n-community%20node-blue?logo=n8n)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-A Blueprint-Style DAG (Directed Acyclic Graph) Workflow Orchestrator for n8n. This community node allows you to run multiple workflow branches natively in parallel with sophisticated inter-dependency structures without needing sub-workflows or clunky index tracking!
-
-## Key Features
-- **Concurrent Parallel Execution:** Wait for overlapping endpoints simultaneously.
-- **DAG Flow Mapping:** Provide simple dependent IDs to route flow chains automatically using robust topological mapping.
-- **Native Context & Evaluation:** Evaluates expressions directly within your n8n workspace context.
-- **Automated Fallbacks & Retries:** Contains `catch`, `finally`, and `retry/backoff` parameters per logic block, guaranteeing data extraction survival under latency conditions.
-
----
-
-## Testing & Environment Controls
-
-### Testing Locally in Native n8n Install
-If you have n8n running directly on your machine via npm (`npm list -g n8n`):
-
-1. **Build this node:**  
-   Inside this repository folder, run:
-   ```bash
-   npm run build
-   npm link
-   ```
-2. **Mount to your n8n configuration:**  
-   Navigate to the `.n8n/custom/` repository in your home directory (create it if missing).
-   ```bash
-   cd ~/.n8n/custom/
-   npm link @ksoftm/n8n-nodes-dag-orchestrator
-   ```
-3. **Restart n8n:**  
-   Re-launch the `n8n` command. Your node will appear inside your local UI browser!
-
-### Testing via Docker
-Running n8n via a standard `docker-compose.yml` mapped configuration:
-
-1. Under your compose configuration, bind mount this repository.
-   ```yaml
-   services:
-     n8n:
-       image: n8nio/n8n
-       volumes:
-         - /path/to/my/n8n-nodes-dag-orchestrator:/home/node/.n8n/custom/n8n-nodes-dag-orchestrator
-   ```
-2. Ensure you have run an initial `npm run build` on your host.
-3. Restart your container `docker compose up -d`.
+<br>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/n8n-io/n8n/master/assets/n8n-logo.png" alt="n8n logo" width="100">
+</p>
+<h1 align="center">n8n-nodes-dag-orchestrator</h1>
+<p align="center">
+  <b>A Blueprint-Style DAG (Directed Acyclic Graph) Workflow Orchestrator natively inside n8n.</b>
+</p>
+<p align="center">
+  <a href="https://www.npmjs.com/package/@ksoftm/n8n-nodes-dag-orchestrator" target="_blank"><img src="https://img.shields.io/npm/v/@ksoftm/n8n-nodes-dag-orchestrator" alt="NPM Version"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://n8n.io"><img src="https://img.shields.io/badge/n8n-community%20node-blue?logo=n8n" alt="n8n Community Node"></a>
+</p>
 
 ---
 
-## Automated Deployment (CI/CD)
+The DAG Orchestrator solves multiple simultaneous data pipelines within a single node avoiding n8n's visual bloat, manual looping indices, and missing dependency links. It allows you to run **parallel branches**, declare **dependencies**, and establish robust **try/catch** loops over arrays or inputs completely inside a unified interface.
 
-This repository enforces **NPM Provenance** natively. 
-When you create a formal **Release** within GitHub, the GitHub Actions worker will run tests, compile `tsc`, and deploy dynamically to the public registry. 
+## 📦 Installation
 
-**Requirements:** Set an Access Token in GitHub Secrets named `NPM_TOKEN`.
+### From the n8n UI (Recommended)
+1. In your n8n workspace, navigate to **Settings** > **Community Nodes**.
+2. Click **Install Node**.
+3. Type `@ksoftm/n8n-nodes-dag-orchestrator` and agree to the terms.
+4. Restart your instance if running manually!
 
----
+### From the command line
+If you are running the docker image and using custom mounting boundaries, install via npm:
+```bash
+cd ~/.n8n/custom/
+npm install @ksoftm/n8n-nodes-dag-orchestrator
+```
 
-## Risks and Controls Strategy
+## ✨ Key Features
+* 🚀 **Concurrent Execution:** Run completely unlinked branches at the exact same time without visual sub-workflows.
+* ⛓️ **Graph Resolution:** Specify `dependencies: ['branch_id_1']`. The engine (using Kahn's Topological rules) calculates precisely when child pipelines execute perfectly.
+* 🛡️ **Native Try/Catch/Finally:** Configure specific fallback payload strategies instead of blowing up the parent workflow chain.
+* 🔄 **Built-in Auto Retry:** Tell branches to inherently retry upon failure with automated backoff intervals.
 
-When integrating custom workflow orchestrators, evaluating stability is incredibly important.
+## 🛠️ Usage Example
 
-| Risk Identified | Impact Area | Mitigation & Implemented Control |
+In the DAG Orchestrator `Branches Configuration (JSON)` parameter, provide your pipeline structure:
+
+```json
+[
+  {
+    "id": "storage",
+    "name": "Image Storage",
+    "dependencies": [],
+    "dataType": "binary",
+    "try": { "operation": "storeFile" },
+    "timeout": 60000,
+    "retry": { "maxAttempts": 3, "delayMs": 5000 }
+  },
+  {
+    "id": "thumbnail",
+    "name": "Generate Thumbnail",
+    "dependencies": ["storage"],
+    "dataType": "binary",
+    "try": { "operation": "resize" },
+    "catch": { "operation": "fallbackThumb" }
+  }
+]
+```
+
+## ⚙️ Risks and Edge Case Controls
+
+| Risk | Impact | Automated Control Mitigation |
 |---|---|---|
-| **Infinite Recursion / Circular Dependency** | Can crash the physical node execution thread causing standard n8n workflows to freeze. | **Control:** Graph resolution relies on **Kahn's Algorithm** beforehand. It dynamically calculates edge dependencies and definitively blocks execution natively throwing "Circular Dependency Detected" if A -> B -> A is detected. |
-| **Silent Failures Blocking Output Merge** | A dangling request out over HTTP that eventually times out but locks DAG promises indefinitely. | **Control:** Implement local execution boundaries. Set `timeout: 60000ms` for individual branches and a fallback handler. At worst, apply global `stopOnFirst` error strategies. |
-| **Node Buffer Saturation (Memory Bloat)** | Orchestrator handles parallel heavy file processing (PDFs, Images, Video passing) retaining binaries globally causing RAM overloads. | **Control:** Each node receives an ephemeral, isolated `StateManager` buffer execution mapping. Once `DagEngine.execute()` completes its final merge loop, variables and isolated binary blobs fall out of scope for aggressive automatic Node.js Garbage Collection. |
-| **Code Injection in n8n Evaluation Context** | Exposing `evaluateExpression()` inside arbitrary node routing parameters. | **Control:** No custom execution evaluators (e.g., node 'eval') are manually processed. We securely bind to n8n’s highly audited inner context handler exclusively. |
+| **Circular Dependency** | Crashes execution threads indefinitely (A -> B -> A). | The orchestrator algorithm parses dependencies on trigger and securely throws a `Circular dependency detected` error before native payload locks apply. |
+| **Silent Timeout Locking** | Unresponsive paths lock the entire DAG. | Set `timeout` boundaries explicitly on branches. The DAG will prune branches or `stopOnFirst` allowing n8n to continue reporting safely! |
+| **Node Buffer Saturation** | Processing parallel binaries bloats standard execution memory. | Binaries traverse inside transient isolated Buffers via the internal `StateManager`. Scopes securely cleanup memory maps efficiently for Node.js GC. |
 
-## Compatibility
-`n8n >= v1.0.0`
-`Node >= v18.0 (built for v22)`
+## 🤝 Compatibility
+Developed natively against **n8n v1.x**. Requires **Node.js 18+** standards.
