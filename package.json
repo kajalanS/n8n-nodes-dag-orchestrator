@@ -1,6 +1,6 @@
 {
   "name": "@ksoftm/n8n-nodes-dag-orchestrator",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Blueprint-Style DAG Workflow Orchestrator for n8n",
   "main": "dist/nodes/DagOrchestrator/DagOrchestrator.node.js",
   "scripts": {
