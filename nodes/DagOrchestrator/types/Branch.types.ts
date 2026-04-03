@@ -35,6 +35,10 @@ export interface IBranch {
     continueCondition?: any;
     maxIterations?: number;
   };
+  group?: {
+    branches: IBranch[];
+    timeout?: number;
+  };
   dataType: DataType;
   try: IOperationConfig;
   catch?: IOperationConfig;
