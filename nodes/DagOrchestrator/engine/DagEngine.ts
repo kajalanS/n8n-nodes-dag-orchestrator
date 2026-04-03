@@ -11,11 +11,11 @@ export class DagEngine {
 	private dependencyResolver: DependencyResolver;
 	private branchExecutor: BranchExecutor;
 
-	constructor(config: IDagConfig) {
+	constructor(config: IDagConfig, evaluateExpression?: (expression: any) => any) {
 		this.config = config;
 		this.stateManager = new StateManager();
 		this.dependencyResolver = new DependencyResolver();
-		this.branchExecutor = new BranchExecutor(this.stateManager);
+		this.branchExecutor = new BranchExecutor(this.stateManager, evaluateExpression);
 	}
 
 	public async execute(inputData: INodeExecutionData[]): Promise<INodeExecutionData[]> {

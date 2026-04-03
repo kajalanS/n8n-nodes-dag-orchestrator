@@ -108,7 +108,7 @@ export class DagOrchestrator implements INodeType {
 			branches,
 		};
 
-		const engine = new DagEngine(config);
+		const engine = new DagEngine(config, (expr: any) => this.evaluateExpression(expr, 0));
 		const result = await engine.execute(items);
 
 		return [result];

@@ -4,9 +4,11 @@ import { StateManager } from './StateManager';
 
 export class BranchExecutor {
 	private stateManager: StateManager;
+	private evaluateExpression?: (expression: any) => any;
 
-	constructor(stateManager: StateManager) {
+	constructor(stateManager: StateManager, evaluateExpression?: (expression: any) => any) {
 		this.stateManager = stateManager;
+		this.evaluateExpression = evaluateExpression;
 	}
 
 	public async executeBranch(branch: IBranch, inputData: INodeExecutionData[]): Promise<void> {
@@ -97,8 +99,21 @@ export class BranchExecutor {
 	}
 
 	private async executeOperation(operation: any, inputData: INodeExecutionData[]): Promise<INodeExecutionData[]> {
-		// In a real n8n node, this would evaluate an expression or call an external service
-		return Promise.resolve([{ json: { ...inputData[0]?.json, operationExecuted: operation.operation } }]);
+		let evaluatedOperation = operation;
+		if (this.evaluateExpression && operation.operation) {
+			try {
+				// Safely evaluate simple static string expressions conceptually
+				// For real n8n nodes, we'd iterate over inputData and evaluate per item.
+				const opExpr = operation.operation as string;
+				if (opExpr.startsWith('=')) {
+					evaluatedOperation = { ...operation, operation: this.evaluateExpression(opExpr) };
+				}
+			} catch (e) {
+				// Ignore evaluation failures
+			}
+		}
+		
+		return Promise.resolve([{ json: { ...inputData[0]?.json, operationExecuted: evaluatedOperation.operation } }]);
 	}
 
 	private async sleep(ms: number): Promise<void> {
