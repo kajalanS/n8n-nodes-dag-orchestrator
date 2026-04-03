@@ -10,6 +10,9 @@
     "prepare": "npm run build",
     "test": "jest"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "n8n-community-node-package",
     "dag",
