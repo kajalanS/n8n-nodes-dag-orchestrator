@@ -1,0 +1,37 @@
+name: Publish n8n Community Node
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build_and_publish:
+    name: Build & Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Essential for npm provenance verified publishing
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm run test
+        
+      - name: Build Application
+        run: npm run build
+
+      - name: Publish to NPM
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
