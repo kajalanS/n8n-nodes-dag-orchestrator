@@ -1,8 +1,8 @@
 {
   "name": "@ksoftm/n8n-nodes-dag-orchestrator",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "Blueprint-Style DAG Workflow Orchestrator for n8n",
-  "main": "dist/nodes/DagOrchestrator/DagOrchestrator.node.js",
+  "main": "dist/nodes/DagOrchestrator/DagSplit.node.js",
   "scripts": {
     "build": "tsc && node ./scripts/copy-assets.js",
     "dev": "tsc --watch",
@@ -27,7 +27,12 @@
     "n8nNodesApiVersion": 1,
     "credentials": [],
     "nodes": [
-      "dist/nodes/DagOrchestrator/DagOrchestrator.node.js"
+      "dist/nodes/DagOrchestrator/DagSplit.node.js",
+      "dist/nodes/DagOrchestrator/DagTry.node.js",
+      "dist/nodes/DagOrchestrator/DagCatch.node.js",
+      "dist/nodes/DagOrchestrator/DagFinally.node.js",
+      "dist/nodes/DagOrchestrator/DagJoin.node.js",
+      "dist/nodes/DagOrchestrator/DagLoop.node.js"
     ]
   },
   "files": [

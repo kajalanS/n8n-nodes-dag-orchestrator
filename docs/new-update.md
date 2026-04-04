@@ -11,7 +11,7 @@
 
 This is an n8n community node package that provides Blueprint-style DAG (Directed Acyclic Graph) workflow orchestration. It is inspired by Unreal Engine's Blueprint visual scripting system — users connect nodes visually rather than writing JSON config.
 
-The package is published under `@kajalanS/n8n-nodes-dag-orchestrator`.
+The package is published under `@Ksoftm/n8n-nodes-dag-orchestrator`.
 
 ---
 
