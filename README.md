@@ -1,202 +1,270 @@
-# n8n-nodes-dag-orchestrator — Multi-Node Blueprint DAG Orchestration
+# n8n-nodes-dag-orchestrator
 
-> **Blueprint-style DAG orchestration for n8n.**
-> Visual, parallel, robust. Inspired by Unreal Engine Blueprints.
+**Blueprint-Style DAG Workflow Orchestration for n8n**
 
----
+Bring Unreal Engine Blueprint-style visual workflow orchestration to n8n. Instead of a single node with raw JSON config, use seven purpose-built, visually connected nodes to build parallel workflows with full dependency management, error handling, and binary data preservation.
 
-## Overview
+## What This Package Does
 
-This package provides a family of six n8n nodes for building complex, parallel, and robust workflows using a Directed Acyclic Graph (DAG) model. Each node is a building block—combine them visually to orchestrate multi-branch flows with try/catch/finally, joins, and loops.
+This community node package solves key n8n limitations:
 
-- **No JSON configs**
-- **No sub-workflows**
-- **No code required**
+- **Parallel branches with dependency management** — n8n cannot natively run parallel branches that wait for each other with complex logic
+- **Binary data preservation** — binary data is lost in sub-workflows
+- **Nested loops without index corruption** — loop index tracking breaks with nested loops
+- **Built-in error handling** — try/catch/finally per branch without complex workflow setup
+- **Loop control** — break/continue conditions without manual global state hacks
 
----
+Build complex DAGs visually by connecting small, focused nodes—no JSON configs, no sub-workflows, no code required.
 
-## The Six Nodes
+## Installation
 
-| Node         | Purpose                                                      |
-|--------------|--------------------------------------------------------------|
-| DAG Split    | Start a DAG, split into parallel branches                    |
-| DAG Try      | Mark start of a branch, set retry/timeout, track errors      |
-| DAG Catch    | Handle branch failures, recover or rethrow                   |
-| DAG Finally  | Always runs at end of branch for cleanup/status marking      |
-| DAG Join     | Wait for all branches, merge results, handle errors/timeouts |
-| DAG Loop     | Loop over arrays with isolated state, supports break/continue|
+1. In n8n, open **Community Nodes** (gear icon → Community Nodes)
+2. Search for **dag-orchestrator**
+3. Click **Install**
+4. Restart n8n
 
----
+Or via npm (for development):
 
-## Visual Flow Example (ASCII Art)
+```bash
+cd ~/.n8n/nodes  # or your n8n user directory
+npm install @ksoftm/n8n-nodes-dag-orchestrator
+```
+
+## The Seven Nodes
+
+| Node        | Purpose                                                             |
+| ----------- | ------------------------------------------------------------------- |
+| DAG Split   | Start a DAG, split input into parallel branches (2–6 outputs)       |
+| DAG Try     | Mark start of a branch, set retry/timeout, route to Success/Failure |
+| DAG Catch   | Handle failures from DAG Try, recover or fail downstream            |
+| DAG Finally | Always runs at end of branch for cleanup and status finalization    |
+| DAG Join    | Collect and merge results from all branches into one output         |
+| DAG Loop    | Loop over arrays with isolated index tracking, break/continue       |
+| DAG Group   | Group branches into a named logical container (subgraph)            |
+
+## Visual Flow Example
 
 ```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Image Processing Flow                       │
+└─────────────────────────────────────────────────────────────────────┘
+
 [Manual Trigger]
-       ↓
-  [DAG Split]  ←— Branch Count: 3
-   ↓    ↓    ↓
-   B1   B2   B3
-   ↓
-[DAG Try]  branchLabel: "image_storage"
-   ↓ Success
-[HTTP Request - save to Drive]
-   ↓
-[DAG Finally]  branchLabel: "image_storage"
-   ↓
-[DAG Join] ←—————————————————————————┐
-                                      │
-         B2                           │
-          ↓                           │
-      [DAG Try]  branchLabel: "metadata"
-          ↓ Success   ↓ Failure       │
-      [Code Node]  [DAG Catch]        │
-          ↓             ↓             │
-      [DAG Finally] branchLabel: "metadata"
-          ↓                           │
-          └———————————————————————————┤
-                                      │
-         B3                           │
-          ↓                           │
-      [DAG Try]  branchLabel: "thumbnail"
-          ↓ Success                   │
-      [Code Node - resize]            │
-          ↓                           │
-      [DAG Finally] branchLabel: "thumbnail"
-          ↓                           │
-          └———————————————————————————┘
-                                      ↓
-                               [DAG Join output]
-                                      ↓
-                          [next node in workflow]
-```
+       │
+       ▼
+  [DAG Split]  ←── branchCount: 3
+   │    │    │
+   │    │    └─────────────────────┐
+   │    │                          │
+   │    ▼                          │
+   │ [DAG Try]                     │
+   │ "metadata"                    │
+   │    │ Success                  │
+   │    ▼                          │
+   │ [Code: extract]               │
+   │    │                          │
+   │    ▼                          │
+   │ [DAG Finally]                 │
+   │ "metadata"                    │
+   │    │                          │
+   ▼    │                          │
+[DAG Try]      [DAG Try]            │
+"image_storage" "thumbnail"         │
+   │ Success │ Success             │
+   ▼         ▼                      │
+[HTTP:     [Code:                  │
+ save to    resize]                │
+ Drive]  │                         │
+   │     ▼                         │
+   │  [DAG Finally]                │
+   │  "thumbnail"                  │
+   │     │                         │
+   ▼     ▼                         ▼
+[DAG Finally] ← [DAG Finally] ← [DAG Finally]
+"image_storage" "metadata"    "thumbnail"
+   │              │                │
+   └──────────────┼────────────────┘
+                  ▼
+            [DAG Join]
+        expectedBranchCount: 3
+        joinMode: waitForAll
+        outputFormat: merged
+                  │
+                  ▼
+            [Next Node]
 
----
-
-## Node Details
-
-### DAG Split
-- **Purpose:** Start a DAG, split input to up to 6 parallel branches
-- **Parameters:** Branch Count (2–6), Execution ID Prefix
-- **Outputs:** Up to 6, each labeled Branch 1–6
-- **Context:** Adds `_dagExecutionId`, `_dagTotalBranches`, `_dagBranchIndex`, `_dagBranchLabel`, `_dagStatus: running`
-
-### DAG Try
-- **Purpose:** Start a branch, set retry/timeout, track errors
-- **Parameters:** Branch Label (unique), Operation Label, Timeout, Retry options
-- **Outputs:** Success, Failure
-- **Context:** Adds `_dagBranchLabel`, `_dagStatus: try_running` or `try_failed`, `_dagError`
-
-### DAG Catch
-- **Purpose:** Handle failures from DagTry, recover or rethrow
-- **Parameters:** Recovery Mode (fallback/rethrow), Fallback Value, Log Error
-- **Outputs:** Main (recovered path)
-- **Context:** Sets `_dagStatus: catch_recovered` or `catch_failed`
-
-### DAG Finally
-- **Purpose:** Always runs at end of branch, for cleanup/status marking
-- **Parameters:** Branch Label (must match DagTry), Mark Status (auto/success/failed), Cleanup Note
-- **Outputs:** Main
-- **Context:** Sets `_dagStatus: completed` or `failed`, `_dagFinallyRan: true`
-
-### DAG Join
-- **Purpose:** Wait for all branches, merge results, handle errors/timeouts
-- **Parameters:** Expected Branch Count, Join Mode, Output Format, Error Strategy, Global Timeout
-- **Outputs:** Main (merged result)
-- **Context:** Merges all branch results, uses `_dagExecutionId`, `_dagBranchLabel`
-- **Note:** Uses n8n static data—**requires self-hosted n8n**
-
-### DAG Loop
-- **Purpose:** Loop over arrays with isolated state, supports break/continue
-- **Parameters:** Source Field, Batch Size, Max Iterations, Index/Total Variable Names, Break/Continue Conditions
-- **Outputs:** Loop Body, Done (summary)
-- **Context:** Tracks loop state, outputs `currentIndex`, `totalItems`, etc.
-
----
-
-## Shared Context Object
-
-Every item carries this context in `item.json`:
-
-```typescript
-interface DagContext {
-  _dagExecutionId: string;
-  _dagTotalBranches: number;
-  _dagBranchIndex: number;
-  _dagBranchLabel: string;
-  _dagStatus:
-    | "running"
-    | "try_running"
-    | "try_failed"
-    | "catch_recovered"
-    | "catch_failed"
-    | "completed"
-    | "failed"
-    | "timeout"
-    | "skipped";
-  _dagError?: string;
-  _dagFinallyRan?: boolean;
-  _dagTimestamp?: string;
+Result: {
+  branches: {
+    image_storage: { status: "completed", data: [...] },
+    metadata: { status: "completed", data: [...] },
+    thumbnail: { status: "completed", data: [...] }
+  }
 }
 ```
 
----
+## How It Works
 
-## Real-World Example: Image Processing
+1. **DAG Split** creates a unique execution context and routes input to all branches
+2. **DAG Try** marks branch start, enforces retry/timeout policies, routes success/failure
+3. User nodes run on the success path
+4. **DAG Catch** (optional) recovers from failures
+5. **DAG Finally** marks branch completion, ensures all branches reach the join
+6. **DAG Join** waits for all branches using static data, merges results
+7. Binary data is preserved at every step
 
-**Goal:** Receive a binary image, store it, extract metadata, generate thumbnail—all in parallel, robustly.
+For loops, use **DAG Loop** to iterate without sub-workflows:
+
+- Automatically tracks loop index and total items
+- Routes each batch to "Loop Body" output
+- Routes completion summary to "Done" output
+- Supports break/continue conditions
+
+## Important Notes
+
+### Self-Hosted n8n Required
+
+**DAG Join** and **DAG Loop** use `getWorkflowStaticData('node')` to maintain state across multiple execution calls. This feature is only available in **self-hosted n8n**. It does not work in n8n Cloud.
+
+### Verified Community Node Publishing
+
+As of May 1, 2026, n8n requires verified community node publishing via GitHub Actions with provenance signatures. This package will comply with those requirements.
+
+### Binary Data is Preserved
+
+Unlike sub-workflows, all nodes in this package preserve binary data at every step. Binary buffers are never serialized—they stay in memory throughout the workflow execution.
+
+## Connection Rules
+
+Valid patterns:
 
 ```
-[Manual Trigger]
-       ↓
-  [DAG Split]  ←— Branch Count: 3
-   ↓    ↓    ↓
-   B1   B2   B3
-   ↓
-[DAG Try]  branchLabel: "image_storage"
-   ↓ Success
-[HTTP Request - save to Drive]
-   ↓
-[DAG Finally]  branchLabel: "image_storage"
-   ↓
-[DAG Join] ←—————————————————————————┐
-                                      │
-         B2                           │
-          ↓                           │
-      [DAG Try]  branchLabel: "metadata"
-          ↓ Success   ↓ Failure       │
-      [Code Node]  [DAG Catch]        │
-          ↓             ↓             │
-      [DAG Finally] branchLabel: "metadata"
-          ↓                           │
-          └———————————————————————————┤
-                                      │
-         B3                           │
-          ↓                           │
-      [DAG Try]  branchLabel: "thumbnail"
-          ↓ Success                   │
-      [Code Node - resize]            │
-          ↓                           │
-      [DAG Finally] branchLabel: "thumbnail"
-          ↓                           │
-          └———————————————————————————┘
-                                      ↓
-                               [DAG Join output]
-                                      ↓
-                          [next node in workflow]
+Pattern A: Parallel Branches with Error Handling
+[Any Node]
+    ↓
+[DAG Split]
+  ↙ ↓ ↘
+[DAG Try] [DAG Try] [DAG Try]
+  │ Success ↓ Success ↓ Success
+  ├────────→[ops]→[ops]→
+  │          │ Failure
+  ├─────────→[DAG Catch]
+  │               ↓
+  ├────────────────[DAG Finally]
+  │   │   │
+  └─→ ↓   ↓
+   [DAG Join]
+     ↓
+ [Any Node]
+
+Pattern B: Looping
+[Any Node]
+    ↓
+[DAG Loop]  ←──────────┐
+  ↙         ↘          │
+[Loop Body] [Done]     │
+  ↓                    │
+[ops] → [repeat?] ────┘
+  ↓
+[Next Step]
+
+Pattern C: Grouped DAGs
+[Any Node] → [DAG Group] → [DAG Split] → ... → [DAG Join] → [Any Node]
+
+Pattern D: Nested Groups
+[DAG Group] → [DAG Split] → [DAG Group] → [DAG Split] → [DAG Join] → [DAG Join]
 ```
 
----
+## Context Fields
 
-## Constraints & Known Limitations
+Every item carries DAG context in `item.json`. Key fields:
 
-| Constraint                                | Detail                                                                                                    |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Max branches in DagSplit                  | 6. Fixed maximum. n8n does not support truly dynamic output pin counts at runtime.                        |
-| DagJoin requires self-hosted n8n          | Uses `getWorkflowStaticData` which does not work reliably on n8n cloud. Document this.                    |
-| No runtime npm dependencies               | Verified community nodes cannot use runtime npm packages. All logic must be self-contained in TypeScript. |
-| Binary data in DagJoin                    | Large binary files held in memory until all branches complete. Document practical size limits.            |
-| Branch Label must be unique               | DagTry's Branch Label must be unique within a single DAG flow. DagJoin uses it to group results.          |
-| DagFinally Branch Label must match DagTry | These two nodes are paired. Mismatched labels will cause DagJoin to wait forever.                         |
+```typescript
+_dagExecutionId; // Unique ID for this DAG run
+_dagBranchLabel; // e.g., "image_storage", "metadata"
+_dagStatus; // "running" | "try_running" | "completed" | "failed" | ...
+_dagError; // Error message if failed
+_dagTimeoutMs; // Timeout in ms (set by DAG Try)
+_dagMaxRetry; // Max retry attempts
+_dagRetryDelayMs; // Delay between retries
+_dagLoopId; // Loop ID (DAG Loop)
+_dagGroupLabel; // Group name (DAG Group)
+```
+
+See the [specification document](docs/next-version.md) for the complete field reference.
+
+## Examples
+
+### Image Processing (Binary + Parallel)
+
+Receive an image, save to Drive AND extract metadata in parallel, then generate thumbnail.
+
+```
+Manual Trigger
+    ↓
+[DAG Split: 3 branches]
+    ↙    ↓     ↘
+Save  Extract Thumbnail
+    ↓    ↓     ↓
+   DAG Try (timeout: 60s, retry: 3)
+    ↓
+   [HTTP POST to Drive]
+    ↓
+   [DAG Finally]
+    ↓
+   [DAG Join]
+    ↓
+   [Next Step - Use Merged Results]
+```
+
+### API Rate-Limited Fetches (Loops)
+
+Fetch 1000 items from an API with low rate limits.
+
+```
+[API: Get Total Count] → result: 1000
+    ↓
+[DAG Loop]
+  ├─ Source Field: items
+  ├─ Batch Size: 10
+  ├─ Max Iterations: 100
+  │
+  ├─[Loop Body]
+  │   ↓
+  │  [HTTP GET] with offset + limit
+  │   ↓
+  │  [Transform Result]
+  │   ↓
+  │  [repeat loop]
+  │
+  └─[Done] → [Combine All Results]
+```
+
+## Troubleshooting
+
+### "DAG Join returns empty and never emits"
+
+- Check `expectedBranchCount` matches `branchCount` in DAG Split
+- Check all branches actually reach DAG Join (connection paths should be visible in n8n UI)
+- Check `joinMode` — if `waitForAll`, ensure all branches complete
+
+### "Loop runs forever"
+
+- Set a `maxIterations` limit
+- Use `breakCondition` to exit early
+- Check source array is actually provided
+
+### "Binary data is lost"
+
+- This package preserves binary. If lost, check upstream nodes before DAG Split
+- Ensure DAG Split is used as starting point if binary input is needed
+
+## License
+
+MIT
+
+## Support
+
+For issues, questions, or feature requests, visit the [GitHub repository](https://github.com/ksoftm/n8n-nodes-dag-orchestrator).
 
 ---
 

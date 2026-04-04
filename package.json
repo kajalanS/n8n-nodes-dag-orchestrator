@@ -1,6 +1,6 @@
 {
   "name": "@ksoftm/n8n-nodes-dag-orchestrator",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Blueprint-Style DAG Workflow Orchestrator for n8n",
   "main": "dist/nodes/DagOrchestrator/DagSplit.node.js",
   "scripts": {
@@ -32,20 +32,26 @@
       "dist/nodes/DagOrchestrator/DagCatch.node.js",
       "dist/nodes/DagOrchestrator/DagFinally.node.js",
       "dist/nodes/DagOrchestrator/DagJoin.node.js",
-      "dist/nodes/DagOrchestrator/DagLoop.node.js"
+      "dist/nodes/DagOrchestrator/DagLoop.node.js",
+      "dist/nodes/DagOrchestrator/DagGroup.node.js"
     ]
   },
   "files": [
     "dist"
   ],
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
+    "eslint": "^10.2.0",
     "jest": "^30.3.0",
     "n8n-core": "*",
     "n8n-workflow": "*",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.58.0"
   }
 }
