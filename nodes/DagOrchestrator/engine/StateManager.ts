@@ -9,7 +9,6 @@ export class StateManager {
       branchResults: new Map<string, INodeExecutionData[]>(),
       branchStatus: new Map<string, BranchStatus>(),
       binaryBuffers: new Map<string, Buffer>(),
-      loopState: {},
       executionLog: [],
       errors: []
     };

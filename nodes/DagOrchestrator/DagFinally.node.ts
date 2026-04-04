@@ -10,7 +10,7 @@ const finalStatusFromContext = (status: string | undefined, forcedStatus: string
   if (forcedStatus === 'failed') return 'failed';
   if (!status) return 'completed';
 
-  const failedStates = ['try_failed', 'catch_failed', 'failed', 'timeout'];
+  const failedStates = ['try_failed', 'catch_failed', 'failed', 'timeout', 'skipped'];
   return failedStates.includes(status) ? 'failed' : 'completed';
 };
 

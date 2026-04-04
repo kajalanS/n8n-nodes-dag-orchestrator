@@ -18,6 +18,7 @@ export class DagTry implements INodeType {
     },
     inputs: ['main'],
     outputs: ['main', 'main'],
+    outputNames: ['Success', 'Error'],
     properties: [
       {
         displayName: 'Branch Label',

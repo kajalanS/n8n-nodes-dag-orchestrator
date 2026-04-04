@@ -29,7 +29,6 @@ export interface IExecutionState {
   branchResults: Map<string, INodeExecutionData[]>;
   branchStatus: Map<string, BranchStatus>;
   binaryBuffers: Map<string, Buffer>;
-  loopState: { [loopId: string]: ILoopState };
   executionLog: IExecutionLogEntry[];
   errors: IExecutionError[];
 }

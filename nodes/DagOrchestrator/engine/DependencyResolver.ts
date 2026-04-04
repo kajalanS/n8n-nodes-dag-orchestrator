@@ -23,12 +23,15 @@ export class DependencyResolver {
 				if (!branchMap.has(depId)) {
 					throw new Error(`Branch ${branch.id} depends on unknown branch ${depId}`);
 				}
-				
+
 				// depId -> branch.id
 				adjacencyList.get(depId)!.push(branch.id);
 				incomingEdgesCount.set(branch.id, incomingEdgesCount.get(branch.id)! + 1);
 			}
 		}
+
+		// Snapshot incoming edge counts for runtime execution before Kahn's algorithm mutates them.
+		const incomingEdgesCountForExecution = new Map(incomingEdgesCount);
 
 		// Topological Sort (Kahn's Algorithm)
 		const queue: string[] = [];
@@ -59,7 +62,7 @@ export class DependencyResolver {
 		}
 
 		// Return both the ordered list and dependency structures for dynamic execution
-		return { orderedBranches, adjacencyList, incomingEdgesCount };
+		return { orderedBranches, adjacencyList, incomingEdgesCount: incomingEdgesCountForExecution };
 	}
 }
 

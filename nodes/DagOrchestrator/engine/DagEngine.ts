@@ -12,6 +12,7 @@ export class DagEngine {
   private dependencyResolver: DependencyResolver;
   private branchExecutor: BranchExecutor;
   private loopController: LoopController;
+  private originalInput: INodeExecutionData[] = [];
   private evaluateExpression?: (expression: any) => any;
 
   constructor(config: IDagConfig, evaluateExpression?: (expression: any) => any) {
@@ -24,6 +25,7 @@ export class DagEngine {
   }
 
   public async execute(inputData: INodeExecutionData[]): Promise<INodeExecutionData[]> {
+    this.originalInput = inputData;
     const { orderedBranches, adjacencyList, incomingEdgesCount } = this.dependencyResolver.resolveDependencies(this.config.branches);
 
     const branchCount = orderedBranches.length;
@@ -253,7 +255,7 @@ export class DagEngine {
               completedCount++;
               const children = adjacencyList.get(branch.id) || [];
               for (const c of children) incomingEdgesCount.set(c, incomingEdgesCount.get(c)! - 1);
-              checkCompletion();
+              checkCompletion(branch.id, 'skipped');
               continue;
             }
             if (!executePromises.has(branch.id)) {
@@ -273,7 +275,7 @@ export class DagEngine {
 
   private mergeOutputs(): INodeExecutionData[] {
     if (this.config.outputFormat === 'passthrough') {
-      return []; // Would return the original input
+      return this.originalInput;
     }
 
     let merged: any = {};

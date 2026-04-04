@@ -39,11 +39,23 @@ describe('DependencyResolver', () => {
 
         const { orderedBranches } = resolver.resolveDependencies(branches);
         const order = orderedBranches.map(b => b.id);
-        
+
         expect(order[0]).toBe('A');
         expect(order.includes('B')).toBe(true);
         expect(order.includes('C')).toBe(true);
         expect(order[3]).toBe('D');
+    });
+
+    test('should preserve incoming edge counts for execution after sorting', () => {
+        const branches = [
+            createBranch('B', ['A']),
+            createBranch('A', []),
+        ];
+
+        const { incomingEdgesCount } = resolver.resolveDependencies(branches);
+
+        expect(incomingEdgesCount.get('A')).toBe(0);
+        expect(incomingEdgesCount.get('B')).toBe(1);
     });
 
     test('should throw error on circular dependencies', () => {

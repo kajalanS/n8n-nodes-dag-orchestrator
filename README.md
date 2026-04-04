@@ -133,6 +133,50 @@ As of May 1, 2026, n8n requires verified community node publishing via GitHub Ac
 
 Unlike sub-workflows, all nodes in this package preserve binary data at every step. Binary buffers are never serialized—they stay in memory throughout the workflow execution.
 
+## Error Handling with DAG Try and DAG Catch
+
+**DAG Try** and **DAG Catch** provide try/catch error handling per branch. However, since n8n workflows execute asynchronously, the "catch" block cannot wrap downstream operations directly. Instead, use n8n's built-in error outputs to route failures back to **DAG Catch**.
+
+### Wiring Pattern for Error Handling
+
+1. Connect **DAG Try** to your operation nodes (e.g., HTTP Request, AI Agent).
+2. On the operation node, enable **"Continue On Fail"** in its settings.
+3. Connect the operation node's **Error Output** (red pin) back to a **DAG Catch** node.
+4. Connect the operation node's **Success Output** (green pin) to **DAG Finally**.
+5. **DAG Catch** can then recover (fallback data) or rethrow the error.
+
+```
+[DAG Try]
+    ↓ Success
+[Operation Node]  ←── Enable "Continue On Fail"
+  ├─ Success ──→ [DAG Finally]
+  └─ Error ────→ [DAG Catch]
+                     ↓
+                [Recovery Logic or Rethrow]
+```
+
+### Example: API Call with Retry and Fallback
+
+```
+[DAG Try] (timeout: 30s, retry: 2)
+    ↓ Success
+[HTTP Request] (Continue On Fail: ON)
+  ├─ Success ──→ [Process Response] → [DAG Finally]
+  └─ Error ────→ [DAG Catch] (recoveryMode: fallback)
+                     ↓
+                [Use Fallback Data] → [DAG Finally]
+```
+
+- If the HTTP request succeeds, data flows to **DAG Finally**.
+- If it fails (e.g., 500 error), the error output routes to **DAG Catch**, which injects fallback data and continues.
+- **DAG Finally** always runs, marking the branch as completed or failed.
+
+### Important Notes
+
+- **DAG Try**'s Error output is for its own internal failures (rare). For downstream errors, wire from the operation node's error output.
+- Use **DAG Catch**'s `rethrow` mode to propagate errors upward if recovery isn't possible.
+- Error details are stored in `item.json._dagError` for inspection.
+
 ## Connection Rules
 
 Valid patterns:

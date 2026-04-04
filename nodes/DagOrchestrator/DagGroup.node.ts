@@ -69,8 +69,6 @@ export class DagGroup implements INodeType {
                 json: {
                     ...item.json,
                     _dagGroupLabel: groupLabel,
-                    _dagGroupTimeout: groupTimeout,
-                    _dagGroupErrorStrategy: errorStrategy,
                     _dagGroupDescription: description,
                     _dagGroupEnteredAt: new Date().toISOString(),
                 },

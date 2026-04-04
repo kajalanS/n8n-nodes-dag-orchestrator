@@ -79,7 +79,8 @@ export class DagCatch implements INodeType {
     });
 
     if (recoveryMode === 'rethrow') {
-      throw new Error('DAG Catch configured to rethrow failures.');
+      const originalError = items[0]?.json?._dagError || 'Unknown error from DAG Catch rethrow';
+      throw new Error(String(originalError));
     }
 
     return [outputItems];
